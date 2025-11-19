@@ -1,0 +1,40 @@
+# Build directories
+build/
+cmake-build-*/
+
+# Compiled files
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Dependencies
+libs/wolfTPM/
+libs/cJSON/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
