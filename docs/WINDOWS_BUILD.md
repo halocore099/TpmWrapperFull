@@ -203,7 +203,7 @@ The client will:
 
 ## Next Steps
 
-- See `README.md` for general project information
+- See `../README.md` for general project information
 - See `BACKEND_ISSUE.md` for backend compatibility notes
 - Check server logs if registration fails
 

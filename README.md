@@ -174,6 +174,14 @@ The client communicates with a backend server that provides:
   - Request: `{challenge_id, decrypted_secret}`
   - Response: Success/failure status
 
+## Documentation
+
+Additional documentation is available in the `docs/` directory:
+- **Windows Build**: `docs/WINDOWS_BUILD.md` - Complete Windows build instructions
+- **Backend Issues**: `docs/BACKEND_ISSUE.md` - Backend compatibility notes
+- **API Verification**: `docs/API_VERIFICATION.md` - API endpoint verification
+- **Windows Compatibility**: `docs/WINDOWS_COMPATIBILITY_REVIEW.md` - Windows compatibility review
+
 ## Troubleshooting
 
 ### Build Issues
