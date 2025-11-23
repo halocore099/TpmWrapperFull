@@ -36,11 +36,13 @@ char* json_build_complete_challenge(const char* challenge_id, const char* decryp
  * @param encrypted_secret Output: encrypted_secret (must be freed by caller)
  * @param hmac Output: hmac (must be freed by caller)
  * @param enc Output: enc (must be freed by caller)
+ * @param hwid Output: hwid (must be freed by caller, optional)
+ * @param ek_hash Output: ek_hash (must be freed by caller, optional)
  * @return 0 on success, negative on error
  */
 int json_parse_register_response(const char* json_str, char** challenge_id, 
                                   char** credential_blob, char** encrypted_secret,
-                                  char** hmac, char** enc);
+                                  char** hmac, char** enc, char** hwid, char** ek_hash);
 
 /**
  * Parse challenge completion response

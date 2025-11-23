@@ -90,8 +90,7 @@ if(PLATFORM_LINUX)
 elseif(PLATFORM_WINDOWS)
     add_definitions(-DPLATFORM_WINDOWS)
     message(STATUS "Building for Windows - TPM via TBS API")
-    # Windows TBS requires additional libraries
-    set(PLATFORM_LIBS tbs)
+    set(PLATFORM_LIBS ${PLATFORM_LIBS} tbs)
 elseif(PLATFORM_MACOS)
     add_definitions(-DPLATFORM_MACOS)
     message(STATUS "Building for macOS - TPM via swtpm socket")
@@ -107,6 +106,7 @@ if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/libs/cJSON/CMakeLists.txt)
     message(STATUS "cJSON not found, will be downloaded by build script")
 endif()
 
+
 # Add wolfTPM subdirectory if it exists
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/libs/wolfTPM/CMakeLists.txt)
     # Help find wolfSSL on macOS (Homebrew)
@@ -120,12 +120,12 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/libs/wolfTPM/CMakeLists.txt)
     
     # Configure wolfTPM interface based on platform
     if(PLATFORM_WINDOWS)
-        set(WOLFTPM_INTERFACE "TBS" CACHE STRING "TPM interface" FORCE)
-        message(STATUS "Configuring wolfTPM for Windows TBS interface")
+        set(WOLFTPM_INTERFACE "WINAPI" CACHE STRING "TPM interface" FORCE)
+        message(STATUS "Configuring wolfTPM for Windows WINAPI interface")
     elseif(APPLE)
         set(WOLFTPM_INTERFACE "SWTPM" CACHE STRING "TPM interface" FORCE)
         message(STATUS "Configuring wolfTPM for macOS SWTPM interface")
-    else
+    else()
         # Linux: auto-detect (can use /dev/tpm0 or SWTPM)
         message(STATUS "Configuring wolfTPM for Linux (auto-detect interface)")
     endif()
@@ -163,7 +163,9 @@ set(SOURCES
     src/base64.c
     src/json_utils.c
     src/logger.c
+    src/ek_cert_gen.c
 )
+
 
 # Header files
 set(HEADERS
@@ -178,43 +180,6 @@ set(HEADERS
 # Create executable
 add_executable(tpm_client ${SOURCES} ${HEADERS})
 
-# Test executables (temporary, for testing)
-add_executable(test_ek test_ek.c src/tpm_wrapper.c src/platform_tpm.c src/base64.c)
-target_link_libraries(test_ek
-    ${CURL_LIBRARIES}
-    ${WOLFTPM_LIB}
-    ${CJSON_LIB}
-    ${PLATFORM_LIBS}
-)
-target_include_directories(test_ek PRIVATE src)
-
-add_executable(test_attestation test_attestation.c src/tpm_wrapper.c src/platform_tpm.c src/base64.c)
-target_link_libraries(test_attestation
-    ${CURL_LIBRARIES}
-    ${WOLFTPM_LIB}
-    ${CJSON_LIB}
-    ${PLATFORM_LIBS}
-)
-target_include_directories(test_attestation PRIVATE src)
-
-add_executable(test_server_direct test_server_direct.c src/tpm_wrapper.c src/platform_tpm.c src/base64.c src/json_utils.c)
-target_link_libraries(test_server_direct
-    ${CURL_LIBRARIES}
-    ${WOLFTPM_LIB}
-    ${CJSON_LIB}
-    ${PLATFORM_LIBS}
-)
-target_include_directories(test_server_direct PRIVATE src)
-
-if(APPLE)
-    if(EXISTS "/opt/homebrew/opt/wolfssl/include")
-        target_include_directories(test_ek PRIVATE "/opt/homebrew/opt/wolfssl/include")
-        target_include_directories(test_attestation PRIVATE "/opt/homebrew/opt/wolfssl/include")
-    elseif(EXISTS "/usr/local/opt/wolfssl/include")
-        target_include_directories(test_ek PRIVATE "/usr/local/opt/wolfssl/include")
-        target_include_directories(test_attestation PRIVATE "/usr/local/opt/wolfssl/include")
-    endif()
-endif()
 
 # Link libraries
 target_link_libraries(tpm_client
@@ -223,6 +188,7 @@ target_link_libraries(tpm_client
     ${CJSON_LIB}
     ${PLATFORM_LIBS}
 )
+
 
 # Compiler-specific options
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")

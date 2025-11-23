@@ -1,5 +1,6 @@
 #include "http_client.h"
 #include "json_utils.h"
+#include "logger.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -106,13 +107,21 @@ int http_register(const char* server_url, const char* uuid, const char* ek_pub,
         return -1;
     }
     
+    // Log the full server response for debugging
+    log_info("=== Server Registration Response ===");
+    log_info("Full JSON response:");
+    log_info("%s", buffer.data);
+    log_info("=== End of Server Response ===");
+    
     // Parse response
     int parse_result = json_parse_register_response(buffer.data, 
         &response->challenge_id,
         &response->credential_blob,
         &response->encrypted_secret,
         &response->hmac,
-        &response->enc);
+        &response->enc,
+        &response->hwid,
+        &response->ek_hash);
     
     free(buffer.data);
     
@@ -121,6 +130,28 @@ int http_register(const char* server_url, const char* uuid, const char* ek_pub,
         http_free_register_response(response);
         return -1;
     }
+    
+    // Log parsed response fields
+    log_info("=== Parsed Registration Response ===");
+    log_info("  challenge_id: %s", response->challenge_id ? response->challenge_id : "(null)");
+    log_info("  credential_blob: %s (%zu bytes)", 
+             response->credential_blob ? "present" : "(null)",
+             response->credential_blob ? strlen(response->credential_blob) : 0);
+    log_info("  encrypted_secret: %s (%zu bytes)",
+             response->encrypted_secret ? "present" : "(null)",
+             response->encrypted_secret ? strlen(response->encrypted_secret) : 0);
+    log_info("  hmac: %s (%zu bytes)",
+             response->hmac ? "present" : "(null)",
+             response->hmac ? strlen(response->hmac) : 0);
+    log_info("  enc: %s (%zu bytes)",
+             response->enc ? "present" : "(null)",
+             response->enc ? strlen(response->enc) : 0);
+    log_info("  hwid: %s (%zu bytes)",
+             response->hwid ? "present" : "(null)",
+             response->hwid ? strlen(response->hwid) : 0);
+    log_info("  ek_hash: %s",
+             response->ek_hash ? response->ek_hash : "(null)");
+    log_info("=== End of Parsed Response ===");
     
     return 0;
 }
@@ -221,6 +252,10 @@ void http_free_register_response(register_response_t* response) {
     if (response->enc) {
         free(response->enc);
         response->enc = NULL;
+    }
+    if (response->ek_hash) {
+        free(response->ek_hash);
+        response->ek_hash = NULL;
     }
 }
 

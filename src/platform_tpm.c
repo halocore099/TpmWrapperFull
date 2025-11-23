@@ -14,6 +14,10 @@
 #include <windows.h>
 #include <tbs.h>
 #include <stdbool.h>
+
+// TBS_CONTEXT_PARAMS2 is defined in Windows SDK tbs.h
+// It has: version (UINT32) and includeTpm20 (BOOL) fields
+// TBS_CONTEXT_VERSION_TWO and TBS_CONTEXT_CREATE_FLAGS_INCLUDE_TPM20 are also in tbs.h
 #elif defined(PLATFORM_MACOS)
 #include <unistd.h>
 #include <sys/socket.h>
@@ -97,32 +101,52 @@ bool platform_tpm_available(void) {
 
 #elif defined(PLATFORM_WINDOWS)
 // Windows: Use TBS (TPM Base Services)
+// Note: wolfTPM's WINAPI interface creates its own TBS context internally,
+// so we just verify TBS is available without creating a persistent context.
 int platform_tpm_init(platform_tpm_ctx_t* ctx) {
     if (!ctx) return -1;
     
     memset(ctx, 0, sizeof(platform_tpm_ctx_t));
     
-    // Check TPM availability via TBS
+    // Verify TBS is available by creating a test context and immediately closing it
+    // wolfTPM will create its own TBS context when needed
     TBS_HCONTEXT hContext = 0;
-    TBS_CONTEXT_PARAMS params = {0};
-    params.version = TBS_CONTEXT_VERSION_ONE;
+    TBS_RESULT result = TBS_E_INTERNAL_ERROR;
     
-    TBS_RESULT result = Tbsi_Context_Create((TBS_CONTEXT_PARAMS*)&params, &hContext);
+    // Try TBS_CONTEXT_VERSION_TWO first (for TPM 2.0)
+    #ifdef TBS_CONTEXT_VERSION_TWO
+    TBS_CONTEXT_PARAMS2 params2 = {0};
+    params2.version = TBS_CONTEXT_VERSION_TWO;
+    params2.includeTpm20 = TRUE;
+    result = Tbsi_Context_Create((PCTBS_CONTEXT_PARAMS)&params2, &hContext);
+    #endif
+    
+    // If version 2 not available or failed, try version 1
+    if (result != TBS_SUCCESS) {
+        TBS_CONTEXT_PARAMS params = {0};
+        params.version = TBS_CONTEXT_VERSION_ONE;
+        result = Tbsi_Context_Create(&params, &hContext);
+    }
+    
     if (result != TBS_SUCCESS) {
         printf("Error: TPM not available (TBS error: 0x%x)\n", (unsigned int)result);
         return -1;
     }
     
-    ctx->tpm_ctx = (void*)(uintptr_t)hContext;
+    // Close the test context - wolfTPM will create its own when needed
+    Tbsip_Context_Close(hContext);
+    
+    // Don't store context - wolfTPM WINAPI creates its own
+    ctx->tpm_ctx = NULL;
     ctx->is_connected = false;
-    printf("TPM context created successfully\n");
+    printf("TPM available (TBS verified, wolfTPM will create its own context)\n");
     return 0;
 }
 
 int platform_tpm_connect(platform_tpm_ctx_t* ctx) {
-    if (!ctx || !ctx->tpm_ctx) return -1;
+    if (!ctx) return -1;
     
-    // TBS context is already created in init
+    // For Windows, wolfTPM creates its own TBS context, so we just mark as connected
     ctx->is_connected = true;
     return 0;
 }
@@ -135,11 +159,8 @@ void platform_tpm_disconnect(platform_tpm_ctx_t* ctx) {
 void platform_tpm_cleanup(platform_tpm_ctx_t* ctx) {
     if (!ctx) return;
     
-    if (ctx->tpm_ctx) {
-        TBS_HCONTEXT hContext = (TBS_HCONTEXT)(uintptr_t)ctx->tpm_ctx;
-        Tbsip_Context_Close(hContext);
-        ctx->tpm_ctx = NULL;
-    }
+    // For Windows, wolfTPM manages its own TBS context, so nothing to clean up here
+    ctx->tpm_ctx = NULL;
     ctx->is_connected = false;
 }
 
@@ -150,10 +171,22 @@ void* platform_tpm_get_context(platform_tpm_ctx_t* ctx) {
 
 bool platform_tpm_available(void) {
     TBS_HCONTEXT hContext = 0;
-    TBS_CONTEXT_PARAMS params = {0};
-    params.version = TBS_CONTEXT_VERSION_ONE;
+    TBS_RESULT result = TBS_E_INTERNAL_ERROR;
     
-    TBS_RESULT result = Tbsi_Context_Create((TBS_CONTEXT_PARAMS*)&params, &hContext);
+    // Try TBS_CONTEXT_VERSION_TWO first (for TPM 2.0)
+    #ifdef TBS_CONTEXT_VERSION_TWO
+    TBS_CONTEXT_PARAMS2 params2 = {0};
+    params2.version = TBS_CONTEXT_VERSION_TWO;
+    params2.includeTpm20 = TRUE;
+    result = Tbsi_Context_Create((PCTBS_CONTEXT_PARAMS)&params2, &hContext);
+    #endif
+    
+    // If version 2 not available or failed, try version 1
+    if (result != TBS_SUCCESS) {
+        TBS_CONTEXT_PARAMS params = {0};
+        params.version = TBS_CONTEXT_VERSION_ONE;
+        result = Tbsi_Context_Create(&params, &hContext);
+    }
     if (result == TBS_SUCCESS) {
         Tbsip_Context_Close(hContext);
         return true;

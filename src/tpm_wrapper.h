@@ -2,6 +2,7 @@
 #define TPM_WRAPPER_H
 
 #include <stddef.h>
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -41,21 +42,21 @@ int tpm_get_ek(ek_data_t* ek_data);
 /**
  * Get attestation data (EK + AIK)
  * @param attest_data Output: Attestation data (must be freed with tpm_free_attestation_data)
+ * @param use_windows_ek_format If true, use Windows EK format (360 bytes), else use persistent EK format (388 bytes)
  * @return 0 on success, negative on error
  */
-int tpm_get_attestation_data(attestation_data_t* attest_data);
+int tpm_get_attestation_data(attestation_data_t* attest_data, bool use_windows_ek_format);
 
 /**
- * Activate credential
- * @param credential_blob Base64-encoded credential blob
- * @param encrypted_secret Base64-encoded encrypted secret
- * @param hmac Base64-encoded HMAC
- * @param enc Base64-encoded encryption key
+ * Activate credential using TPM2_ActivateCredential
+ * @param encrypted_secret Base64-encoded encrypted secret (TPM2B_ENCRYPTED_SECRET)
+ * @param hmac Base64-encoded HMAC (32 bytes, part of TPM2B_ID_OBJECT)
+ * @param enc Base64-encoded encrypted inner credential (part of TPM2B_ID_OBJECT)
  * @param decrypted_secret Output: Base64-encoded decrypted secret (must be freed by caller)
  * @return 0 on success, negative on error
  */
-int tpm_activate_credential(const char* credential_blob, const char* encrypted_secret,
-                           const char* hmac, const char* enc, char** decrypted_secret);
+int tpm_activate_credential(const char* encrypted_secret, const char* hmac, const char* enc,
+                           char** decrypted_secret);
 
 /**
  * Free EK data

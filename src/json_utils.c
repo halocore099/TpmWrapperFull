@@ -26,18 +26,15 @@ char* json_build_register(const char* uuid, const char* ek_pub, const char* ek_c
     char* json = (char*)malloc(size);
     if (!json) return NULL;
     
-    // Backend requires ek_cert to be a string (not null)
-    // When not available (swtpm doesn't provide EK certs), send minimal valid DER structure
-    // This prevents "Insufficient data" error when backend tries to decode it
+    // Backend expects ek_cert as base64 DER format
+    // When not available (swtpm doesn't provide EK certs), send empty string
+    // The server should handle empty strings gracefully
     const char* cert_value;
     if (ek_cert && strlen(ek_cert) > 0) {
         cert_value = ek_cert;
     } else {
-        // Send minimal valid DER structure that can be decoded without error
-        // This is a minimal SEQUENCE structure: 30 0A 30 08 02 01 00 30 03 06 01 00
-        // Base64: MgoKCAIAAAMGAA==
-        // The backend should handle this gracefully even if it's not a real certificate
-        cert_value = "MgoKCAIAAAMGAA==";  // Minimal valid DER structure
+        // Send empty string when certificate is not available
+        cert_value = "";
     }
     
     snprintf(json, size,
@@ -129,7 +126,7 @@ static int extract_json_string(const char* json, const char* key, char** value) 
 
 int json_parse_register_response(const char* json_str, char** challenge_id, 
                                   char** credential_blob, char** encrypted_secret,
-                                  char** hmac, char** enc) {
+                                  char** hmac, char** enc, char** hwid, char** ek_hash) {
     if (!json_str) {
         fprintf(stderr, "Error: JSON string is NULL\n");
         return -1;
@@ -141,6 +138,8 @@ int json_parse_register_response(const char* json_str, char** challenge_id,
     if (encrypted_secret) *encrypted_secret = NULL;
     if (hmac) *hmac = NULL;
     if (enc) *enc = NULL;
+    if (hwid) *hwid = NULL;
+    if (ek_hash) *ek_hash = NULL;
     
     int ret = 0;
     
@@ -170,6 +169,15 @@ int json_parse_register_response(const char* json_str, char** challenge_id,
         goto cleanup;
     }
     
+    // hwid and ek_hash are optional, so don't fail if they're missing
+    if (hwid) {
+        extract_json_string(json_str, "hwid", hwid);  // Don't fail if missing
+    }
+    
+    if (ek_hash) {
+        extract_json_string(json_str, "ek_hash", ek_hash);  // Don't fail if missing
+    }
+    
     return 0;
     
 cleanup:
@@ -193,6 +201,14 @@ cleanup:
     if (enc && *enc) {
         free(*enc);
         *enc = NULL;
+    }
+    if (hwid && *hwid) {
+        free(*hwid);
+        *hwid = NULL;
+    }
+    if (ek_hash && *ek_hash) {
+        free(*ek_hash);
+        *ek_hash = NULL;
     }
     return ret;
 }

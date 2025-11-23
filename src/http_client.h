@@ -14,6 +14,8 @@ typedef struct {
     char* encrypted_secret;
     char* hmac;
     char* enc;
+    char* hwid;  // Hardware ID (inside blob, TPM does NOT accept arbitrary payloads)
+    char* ek_hash;  // EK hash from server (for verification)
 } register_response_t;
 
 /**

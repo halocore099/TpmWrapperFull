@@ -42,7 +42,8 @@ This guide will help you build and run the TPM Client on Windows AMD64.
 - **TPM 2.0** chip (hardware TPM)
   - Most modern Windows PCs have TPM 2.0
   - Check in Windows: `tpm.msc` or `Get-Tpm` in PowerShell
-  - The client uses Windows TBS (TPM Base Services) API
+  - The client uses Windows TBS (TPM Base Services) API directly
+  - Works with Windows 10 and 11
 
 ## Building
 
@@ -150,7 +151,8 @@ build\bin\Release\tpm_client.exe http://server:8001
    ```powershell
    Get-Tpm
    ```
-3. Make sure you're running as Administrator (if required by TPM policy)
+4. Make sure you're running as Administrator (if required by TPM policy)
+5. Restart computer if TPM shows "RestartPending: True"
 
 ### Error: "wolfTPM not found"
 
@@ -172,9 +174,9 @@ build\bin\Release\tpm_client.exe http://server:8001
 
 ### Windows TPM Access
 
-- The client uses **Windows TBS (TPM Base Services)** API
-- No additional drivers needed (TBS is built into Windows)
-- Works with hardware TPM 2.0 chips
+- The client uses **Windows TBS (TPM Base Services)** API directly
+- wolfTPM's WINAPI interface communicates with TBS natively
+- Works with hardware TPM 2.0 chips on Windows 10 and 11
 - **Note:** Software TPM simulators (like swtpm) are not available on Windows
   - For development, use a machine with hardware TPM
   - Or use WSL2 with Linux build for swtpm testing
@@ -194,9 +196,9 @@ build\bin\Release\tpm_client.exe http://your-server:8001
 ```
 
 The client will:
-1. Initialize TPM connection (via TBS)
+1. Initialize TPM connection (via Windows TBS)
 2. Get/create EK (Endorsement Key)
-3. Create SRK and AIK
+3. Create AIK in endorsement hierarchy (under EK)
 4. Register with the server
 5. Activate credential
 6. Complete the challenge

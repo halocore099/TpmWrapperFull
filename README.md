@@ -8,7 +8,7 @@ A cross-platform TPM 2.0 client built with wolfTPM that can register and attest 
 - **TPM Operations**: Endorsement Key (EK) management, Attestation Identity Key (AIK) creation, Credential activation
 - **Backend Integration**: Full integration with `/register` and `/completeChallenge` endpoints
 - **Easy Setup**: One-click build scripts for each platform
-- **Development Support**: Works with swtpm simulator for testing
+- **Development Support**: Works with swtpm simulator for testingwh
 
 ## Requirements
 
@@ -222,7 +222,7 @@ Additional documentation is available in the `docs/` directory:
 - Windows: 
   - Ensure TPM is enabled in BIOS/UEFI
   - Check TPM status: `tpm.msc` or PowerShell: `Get-Tpm`
-  - Verify TBS service is running
+  - Uses Windows TBS (TPM Base Services) API for TPM access
 
 **Connection to server fails:**
 - Verify server URL is correct (include `http://` or `https://`)
