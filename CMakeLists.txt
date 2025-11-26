@@ -138,9 +138,71 @@ else()
     set(WOLFTPM_LIB "")
 endif()
 
+# Function to remove /Za flag from a target (MSVC fix for cJSON)
+function(remove_za_flag target_name)
+    if(MSVC AND TARGET ${target_name})
+        # Remove from COMPILE_OPTIONS (CMake 3.0+)
+        get_target_property(TARGET_OPTS ${target_name} COMPILE_OPTIONS)
+        if(TARGET_OPTS)
+            list(REMOVE_ITEM TARGET_OPTS "/Za")
+            set_target_properties(${target_name} PROPERTIES COMPILE_OPTIONS "${TARGET_OPTS}")
+        endif()
+        
+        # Remove from COMPILE_FLAGS (older CMake)
+        get_target_property(TARGET_FLAGS ${target_name} COMPILE_FLAGS)
+        if(TARGET_FLAGS)
+            string(REPLACE "/Za" "" TARGET_FLAGS "${TARGET_FLAGS}")
+            string(REPLACE " /Za " " " TARGET_FLAGS "${TARGET_FLAGS}")
+            string(REPLACE " /Za" "" TARGET_FLAGS "${TARGET_FLAGS}")
+            string(STRIP "${TARGET_FLAGS}" TARGET_FLAGS)
+            set_target_properties(${target_name} PROPERTIES COMPILE_FLAGS "${TARGET_FLAGS}")
+        endif()
+        
+        # Also remove from INTERFACE_COMPILE_OPTIONS if present
+        get_target_property(TARGET_INTERFACE_OPTS ${target_name} INTERFACE_COMPILE_OPTIONS)
+        if(TARGET_INTERFACE_OPTS)
+            list(REMOVE_ITEM TARGET_INTERFACE_OPTS "/Za")
+            set_target_properties(${target_name} PROPERTIES INTERFACE_COMPILE_OPTIONS "${TARGET_INTERFACE_OPTS}")
+        endif()
+    endif()
+endfunction()
+
 # Add cJSON subdirectory if it exists
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/libs/cJSON/CMakeLists.txt)
+    # Fix MSVC /Za conflict: cJSON's CMakeLists.txt sets /Za which conflicts with /std:c11
+    if(MSVC)
+        # Disable cJSON tests and utils completely (they set /Za)
+        set(ENABLE_CJSON_TEST OFF CACHE BOOL "Enable cJSON testing" FORCE)
+        set(ENABLE_CJSON_UTILS OFF CACHE BOOL "Enable cJSON utilities" FORCE)
+    endif()
+    
     add_subdirectory(libs/cJSON)
+    
+    # Remove /Za from all cJSON targets
+    if(MSVC)
+        # Fix main cJSON library
+        remove_za_flag(cjson)
+        
+        # Fix unity target (from cJSON tests) - even if tests are disabled, it might be created
+        remove_za_flag(unity)
+        
+        # Fix any other cJSON test targets that might exist
+        remove_za_flag(cjson_test)
+        remove_za_flag(print_number)
+        remove_za_flag(misc_tests)
+        remove_za_flag(parse_array)
+        remove_za_flag(parse_examples)
+        remove_za_flag(parse_hex4)
+        remove_za_flag(parse_number)
+        remove_za_flag(parse_object)
+        remove_za_flag(parse_string)
+        remove_za_flag(parse_value)
+        remove_za_flag(parse_with_opts)
+        remove_za_flag(compare_tests)
+        remove_za_flag(json_patch_tests)
+        remove_za_flag(readme_examples)
+    endif()
+    
     set(CJSON_LIB cjson)
     add_definitions(-DHAVE_CJSON)
     message(STATUS "Using bundled cJSON")
@@ -175,6 +237,7 @@ set(HEADERS
     src/base64.h
     src/json_utils.h
     src/logger.h
+    src/ek_cert_gen.h
 )
 
 # Create executable

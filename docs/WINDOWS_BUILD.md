@@ -227,11 +227,15 @@ dir libs\cJSON
    cd path\to\TpmWrapperFull
    ```
 
-3. **Set vcpkg toolchain** (if not integrated):
+3. **Optional: Set VCPKG_ROOT** (if vcpkg is not in default location):
    ```cmd
-   set CMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake
+   set VCPKG_ROOT=C:\vcpkg
    ```
-   (Replace `C:\vcpkg` with your actual vcpkg path)
+   The build script will auto-detect vcpkg in:
+   - `%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake` (if VCPKG_ROOT is set)
+   - `C:\vcpkg\scripts\buildsystems\vcpkg.cmake`
+   - `%USERPROFILE%\vcpkg\scripts\buildsystems\vcpkg.cmake`
+   - `%LOCALAPPDATA%\vcpkg\scripts\buildsystems\vcpkg.cmake`
 
 4. **Run the build script:**
    ```cmd
@@ -240,8 +244,10 @@ dir libs\cJSON
 
 The script will:
 - Auto-detect your architecture (AMD64 or ARM64)
+- Auto-detect vcpkg toolchain (if installed)
 - Download dependencies (wolfTPM, cJSON) if needed
-- Configure CMake with vcpkg toolchain
+- Automatically patch cJSON to fix `/Za` conflict
+- Configure CMake with vcpkg toolchain (if found)
 - Build the project
 
 ### Manual Build
@@ -417,6 +423,34 @@ build\bin\Release\tpm_client.exe http://server:8001
    dir libs\cJSON
    # Should show CMakeLists.txt
    ```
+
+### Error: "D8016: '/Za' and '/std:c11' command-line options are incompatible"
+
+This error occurs when cJSON's CMakeLists.txt sets the `/Za` (ANSI mode) flag which conflicts with C11 standard.
+
+**Solutions:**
+1. **Automatic fix (recommended):** The `build.bat` script automatically patches cJSON's CMakeLists.txt to remove `/Za`. If you see this error:
+   ```cmd
+   # Clean and rebuild
+   rmdir /s /q build
+   rmdir /s /q libs\cJSON
+   build.bat
+   ```
+
+2. **Manual fix:** If the automatic patch doesn't work, manually edit `libs\cJSON\CMakeLists.txt`:
+   - Open `libs\cJSON\CMakeLists.txt` in a text editor
+   - Search for `/Za` and remove all occurrences
+   - Save the file
+   - Rebuild: `cmake --build build --config Release`
+
+3. **Alternative:** Disable cJSON tests (which often set `/Za`):
+   ```cmd
+   cd build
+   cmake .. -DENABLE_CJSON_TEST=OFF -DENABLE_CJSON_UTILS=OFF
+   cmake --build . --config Release
+   ```
+
+**Note:** The CMakeLists.txt has been updated to automatically fix this issue, but if you have an old cJSON clone, you may need to re-download it.
 
 ### Error: "Git not found"
 
