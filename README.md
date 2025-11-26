@@ -25,10 +25,11 @@ A cross-platform TPM 2.0 client built with wolfTPM that can register and attest 
 - Hardware TPM or swtpm for actual TPM operations
 
 ### Windows
-- libcurl (via vcpkg or pre-built binaries)
-- Visual Studio 2019 or later (for building)
+- Visual Studio 2019 or later (for building) with C++ tools
+- vcpkg (for dependency management)
 - Hardware TPM (fTPM or discrete TPM)
 - Git for Windows (for downloading dependencies)
+- CMake 3.15 or higher
 
 ## Quick Start
 
@@ -54,22 +55,34 @@ sudo apt-get install swtpm swtpm-tools
 
 ### Windows
 
+**See [docs/WINDOWS_BUILD.md](docs/WINDOWS_BUILD.md) for complete Windows build instructions.**
+
+Quick start:
+
 ```powershell
-# Clone the repository
+# 1. Install Visual Studio 2019 or 2022 with C++ tools
+# 2. Install vcpkg and dependencies (see WINDOWS_BUILD.md)
+# 3. Clone repository
 git clone <repository-url>
 cd TpmWrapperFull
 
-# Install dependencies:
-# - CMake: https://cmake.org/download/
-# - Visual Studio 2019 or later with C++ tools
-# - libcurl: Install via vcpkg or download pre-built binaries
+# 4. Set vcpkg toolchain (replace C:\vcpkg with your path)
+$env:CMAKE_TOOLCHAIN_FILE = "C:\vcpkg\scripts\buildsystems\vcpkg.cmake"
 
-# Run build script (auto-detects architecture: x86_64 or ARM64)
+# 5. Build
 .\build.bat
 
-# The executable will be in build\bin\Release\tpm_client.exe
+# 6. Run
 .\build\bin\Release\tpm_client.exe <server_url> [uuid]
 ```
+
+**Required dependencies:**
+- Visual Studio 2019 or 2022 with C++ tools
+- vcpkg (for libcurl and wolfSSL)
+- Git (for downloading wolfTPM and cJSON)
+- TPM 2.0 hardware
+
+**Note:** The `libs/` folder (wolfTPM, cJSON) is not in the git repository. The build script will download them automatically, or see `docs/WINDOWS_BUILD.md` for manual download instructions.
 
 ## Building
 
@@ -80,15 +93,62 @@ The build scripts automatically:
 4. Build all components
 5. Create a single executable
 
+### Dependencies
+
+#### Linux Dependencies
+- **libcurl**: HTTP client library
+  ```bash
+  sudo apt-get install libcurl4-openssl-dev  # Debian/Ubuntu
+  sudo yum install libcurl-devel             # RHEL/CentOS
+  ```
+- **libuuid**: UUID generation
+  ```bash
+  sudo apt-get install libuuid-dev
+  ```
+- **wolfTPM**: TPM 2.0 library (bundled, downloaded automatically)
+- **cJSON**: JSON parsing (bundled, downloaded automatically)
+
+#### Windows Dependencies (via vcpkg)
+
+Required vcpkg packages:
+- **curl**: HTTP client library
+  ```powershell
+  .\vcpkg install curl:x64-windows
+  ```
+- **wolfssl**: Required by wolfTPM for cryptographic operations
+  ```powershell
+  .\vcpkg install wolfssl:x64-windows
+  ```
+
+Optional but recommended:
+- **vcpkg integration**: Integrate vcpkg with Visual Studio
+  ```powershell
+  .\vcpkg integrate install
+  ```
+
+**Note**: 
+- wolfTPM and cJSON are bundled dependencies that are automatically downloaded and built by the build scripts. They are **not** in the git repository (see `.gitignore`).
+- See `docs/WINDOWS_BUILD.md` for complete installation instructions.
+
 ### Manual Build
 
-If you prefer to build manually:
-
+#### Linux
 ```bash
 mkdir build
 cd build
 cmake ..
-make  # or 'cmake --build .' on Windows
+make
+```
+
+#### Windows
+```powershell
+# Set vcpkg toolchain (replace with your vcpkg path)
+$env:CMAKE_TOOLCHAIN_FILE = "C:\vcpkg\scripts\buildsystems\vcpkg.cmake"
+
+mkdir build
+cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake --build . --config Release
 ```
 
 ## Usage
@@ -177,10 +237,11 @@ The client communicates with a backend server that provides:
 ## Documentation
 
 Additional documentation is available in the `docs/` directory:
-- **Windows Build**: `docs/WINDOWS_BUILD.md` - Complete Windows build instructions
+- **Windows Build**: `docs/WINDOWS_BUILD.md` - **Complete Windows build instructions** (vcpkg setup, wolfSSL installation, wolfTPM/cJSON download)
+- **TPM2_ActivateCredential Code**: `docs/TPM2_ACTIVATECREDENTIAL_CODE.md` - Complete implementation code for TPM2_ActivateCredential with error handling
+- **Windows Testing**: `docs/WINDOWS_TESTING.md` - Windows testing instructions
 - **Backend Issues**: `docs/BACKEND_ISSUE.md` - Backend compatibility notes
 - **API Verification**: `docs/API_VERIFICATION.md` - API endpoint verification
-- **Windows Compatibility**: `docs/WINDOWS_COMPATIBILITY_REVIEW.md` - Windows compatibility review
 
 ## Troubleshooting
 
@@ -194,8 +255,59 @@ Additional documentation is available in the `docs/` directory:
   ```
 - Windows: Install via vcpkg:
   ```powershell
-  vcpkg install curl
+  # Make sure vcpkg is installed and bootstrapped
+  cd C:\vcpkg
+  .\vcpkg install curl:x64-windows
+  
+  # Then configure CMake with vcpkg toolchain:
+  $env:CMAKE_TOOLCHAIN_FILE = "C:\vcpkg\scripts\buildsystems\vcpkg.cmake"
+  # Or pass it to CMake:
+  cmake .. -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake
   ```
+
+**vcpkg not found (Windows):**
+- See `docs/WINDOWS_BUILD.md` for complete vcpkg installation instructions
+- Install vcpkg:
+  ```powershell
+  git clone https://github.com/Microsoft/vcpkg.git C:\vcpkg
+  cd C:\vcpkg
+  .\bootstrap-vcpkg.bat
+  ```
+- Ensure CMake can find vcpkg by setting `CMAKE_TOOLCHAIN_FILE`:
+  ```powershell
+  $env:CMAKE_TOOLCHAIN_FILE = "C:\vcpkg\scripts\buildsystems\vcpkg.cmake"
+  ```
+
+**CMake can't find vcpkg packages:**
+- Verify vcpkg packages are installed:
+  ```powershell
+  .\vcpkg list
+  ```
+- Reinstall packages if needed:
+  ```powershell
+  .\vcpkg remove curl:x64-windows
+  .\vcpkg install curl:x64-windows
+  .\vcpkg install wolfssl:x64-windows
+  ```
+- Ensure architecture matches (x64-windows vs arm64-windows)
+
+**wolfSSL not found:**
+- Install via vcpkg:
+  ```powershell
+  .\vcpkg install wolfssl:x64-windows
+  ```
+- See `docs/WINDOWS_BUILD.md` for detailed instructions
+
+**wolfTPM or cJSON not found:**
+- These are downloaded automatically by `build.bat`
+- If download fails, manually clone:
+  ```cmd
+  if not exist libs mkdir libs
+  cd libs
+  git clone --depth 1 https://github.com/wolfSSL/wolfTPM.git
+  git clone --depth 1 https://github.com/DaveGamble/cJSON.git
+  ```
+- See `docs/WINDOWS_BUILD.md` for complete instructions
 
 **UUID library not found (Linux):**
 - Install `libuuid-dev`:
